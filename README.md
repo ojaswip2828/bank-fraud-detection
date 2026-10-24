@@ -1,5 +1,12 @@
 # Bank Transaction Analyzer — Fraud Detection (ML · SQL · BFSI)
 
+> **TL;DR**: calibrated LightGBM fraud model with SQL-built features, SHAP reasons for every alert, and a Dockerised scoring API.
+> - **PR-AUC 0.72**, vs 0.66 for Random Forest and 0.26 for Logistic Regression, on 55K future transactions with 0.4% fraud
+> - **94% of fraud caught**, with a threshold chosen in advance on past data only
+> - **12.9% precision at 90% recall**, 60% better than Random Forest
+>
+> Same model ranking on the public **PaySim** dataset. Near-perfect scores (0.9996 here, 1.000 on PaySim) were traced to data shortcuts and removed.
+
 End-to-end fraud detection on ~220K bank transactions:
 - relational data in **SQLite**
 - business analytics and **leakage-safe feature engineering in SQL window functions**
