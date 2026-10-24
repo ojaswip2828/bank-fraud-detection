@@ -2,11 +2,11 @@
 
 One-hot columns (e.g. channel_ONLINE, channel_UPI) are summed back into their
 source feature ("channel") so each reason maps to a column an analyst knows.
-Units: Random Forest -> change in fraud probability; Logistic Regression -> log-odds.
+SHAP explains the model under the probability calibration.
+Units: Random Forest -> change in raw score; LightGBM / Logistic Regression -> log-odds.
 """
 import numpy as np
 import pandas as pd
-import shap
 
 
 def _dense(X):
@@ -21,16 +21,32 @@ def raw_feature(transformed_name, raw_cols):
     return max((c for c in raw_cols if name.startswith(c + "_")), key=len)
 
 
+def base_model(clf):
+    """The fitted model under an isotonic CalibratedClassifierCV (ensemble=False), or clf itself.
+    Calibration is a monotonic re-mapping, so the base model's SHAP reasons rank the same."""
+    cc = getattr(clf, "calibrated_classifiers_", None)
+    return cc[0].estimator if cc else clf
+
+
+def is_tree(model):
+    return hasattr(model, "estimators_") or hasattr(model, "booster_")
+
+
 def shap_frame(bundle, X):
     """SHAP values per *raw* feature for rows X (DataFrame of bundle['features'])."""
     pipe = bundle["pipeline"]
-    pre, clf = pipe.named_steps["pre"], pipe.named_steps["clf"]
+    pre, clf = pipe.named_steps["pre"], base_model(pipe.named_steps["clf"])
     Xt = _dense(pre.transform(X))
-    if hasattr(clf, "estimators_"):
+    if hasattr(clf, "booster_"):
+        # LightGBM's built-in TreeSHAP: same algorithm, no shap dependency (keeps the API image small)
+        vals = clf.predict(Xt, pred_contrib=True, raw_score=True)[:, :-1]
+    elif is_tree(clf):
+        import shap
         vals = shap.TreeExplainer(clf).shap_values(Xt)
         vals = vals[1] if isinstance(vals, list) else vals
         vals = vals[:, :, 1] if vals.ndim == 3 else vals   # (n, features, classes) -> fraud class
     else:
+        import shap
         bg = bundle["background"]
         masker = shap.maskers.Independent(bg, max_samples=len(bg))
         vals = shap.LinearExplainer(clf, masker).shap_values(Xt)

@@ -10,15 +10,20 @@ CATEGORICAL = ["channel", "category", "income_band"]
 TARGET = "is_fraud"
 
 
+def add_derived(df):
+    """Post-SQL transforms. Shared by training and the scoring API so they can't drift."""
+    df["log_amount"] = np.log1p(df["amount"])
+    df["amt_last_24h"] = np.log1p(df["amt_last_24h"])  # heavy-tailed -> log
+    return df
+
+
 def load_features(con=None):
     own = con is None
     con = con or connect()
     df = query(con, (SQL_DIR / "features.sql").read_text())
     if own:
         con.close()
-    df["log_amount"] = np.log1p(df["amount"])
-    df["amt_last_24h"] = np.log1p(df["amt_last_24h"])  # heavy-tailed -> log
-    return df
+    return add_derived(df)
 
 
 def time_split(df, test_frac=0.25):

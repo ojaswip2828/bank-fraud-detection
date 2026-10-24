@@ -15,7 +15,7 @@ from db import ROOT
 from features import load_features
 
 
-def score(model="random_forest"):
+def score(model="lightgbm"):
     b = joblib.load(ROOT / "models" / f"{model}.joblib")
     df = load_features()
     df["fraud_score"] = b["pipeline"].predict_proba(df[b["features"]])[:, 1]
@@ -33,8 +33,8 @@ def explain_rows(df, bundle, k=3):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="random_forest",
-                    choices=["random_forest", "logistic_regression"])
+    ap.add_argument("--model", default="lightgbm",
+                    choices=["lightgbm", "random_forest", "logistic_regression"])
     ap.add_argument("--txn-id", type=int)
     ap.add_argument("--top", type=int, default=10)
     ap.add_argument("--flagged", action="store_true",

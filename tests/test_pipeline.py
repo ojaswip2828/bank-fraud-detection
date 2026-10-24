@@ -77,15 +77,19 @@ def test_fraud_is_not_confined_to_a_few_categories(con):
     assert n_cats >= 5
 
 
-@pytest.fixture(scope="module")
-def small_bundle(con):
+def _bundle(con, model, calibrate=True):
     df = load_features(con)
     tr, te = time_split(df)
     cols = NUMERIC + CATEGORICAL
-    pipe = build_models(rf_kwargs={"n_estimators": 20})["random_forest"]
+    pipe = build_models(rf_kwargs={"n_estimators": 20}, calibrate=calibrate, only=[model])[model]
     _, thr, _ = fit_and_evaluate(pipe, tr, te, cols)
     bg = explain._dense(pipe.named_steps["pre"].transform(tr[cols].head(50)))
     return {"pipeline": pipe, "threshold": thr, "features": cols, "background": bg}, te
+
+
+@pytest.fixture(scope="module")
+def lgbm_bundle(con):
+    return _bundle(con, "lightgbm")
 
 
 def test_ablation_without_features_still_trains(con):
@@ -98,8 +102,8 @@ def test_ablation_without_features_still_trains(con):
     assert pipe.named_steps["pre"].get_feature_names_out().tolist() == [f"num__{c}" for c in num]
 
 
-def test_shap_maps_back_to_raw_features_and_sums_to_prediction(small_bundle):
-    bundle, te = small_bundle
+def test_rf_shap_maps_back_to_raw_features_and_sums_to_prediction(con):
+    bundle, te = _bundle(con, "random_forest", calibrate=False)
     X = te[bundle["features"]].head(20)
     sv = explain.shap_frame(bundle, X)
     assert list(sv.columns) == sorted(bundle["features"])
@@ -111,6 +115,74 @@ def test_shap_maps_back_to_raw_features_and_sums_to_prediction(small_bundle):
     assert np.allclose(base + sv.sum(axis=1), proba, atol=1e-6)
     reasons = explain.top_reasons(sv, X)
     assert len(reasons) == len(X)
+
+
+def test_lgbm_shap_explains_the_model_under_calibration(lgbm_bundle):
+    bundle, te = lgbm_bundle
+    X = te[bundle["features"]].head(20)
+    sv = explain.shap_frame(bundle, X)
+    pipe = bundle["pipeline"]
+    base = explain.base_model(pipe.named_steps["clf"])
+    assert base is not pipe.named_steps["clf"]            # really unwrapped the calibrator
+    Xt = explain._dense(pipe.named_steps["pre"].transform(X))
+    bias = base.predict(Xt, pred_contrib=True, raw_score=True)[:, -1]
+    assert np.allclose(bias + sv.sum(axis=1), base.predict(Xt, raw_score=True), atol=1e-6)
+    # calibrated output is a valid probability
+    p = pipe.predict_proba(X)[:, 1]
+    assert ((p >= 0) & (p <= 1)).all()
+
+
+def _db_path(con):
+    return con.execute("PRAGMA database_list").fetchone()[2]
+
+
+def test_serving_features_match_training_features(con, tmp_path):
+    """No train/serve skew: scoring a txn live must give the features training saw."""
+    import shutil
+    import scoring
+    train_feats = load_features(con)
+    # a customer's last txn, with no other txn at the same timestamp
+    last = train_feats.sort_values(["txn_time", "txn_id"]).groupby("customer_id").tail(1)
+    tx = con.execute("SELECT * FROM transactions WHERE txn_id = ?",
+                     (int(last.iloc[len(last) // 2].txn_id),)).fetchone()
+    copy = tmp_path / "serve.db"
+    shutil.copy(_db_path(con), copy)
+    c2 = sqlite3.connect(copy)
+    c2.execute("DELETE FROM transactions WHERE txn_id = ?", (tx[0],))
+    c2.commit()
+    c2.close()
+    ro = scoring.connect_readonly(copy)
+    txn = dict(zip(["customer_id", "merchant_id", "txn_time", "amount", "channel", "txn_city"],
+                   tx[1:7]))
+    live = scoring.features_for(ro, txn).iloc[0]
+    ro.close()
+    expected = train_feats.loc[train_feats.txn_id == tx[0]].iloc[0]
+    for col in NUMERIC:
+        assert live[col] == pytest.approx(expected[col]), col
+    for col in CATEGORICAL:
+        assert live[col] == expected[col], col
+
+
+def test_api_scores_and_validates(con, lgbm_bundle, tmp_path, monkeypatch):
+    import importlib
+    import joblib
+    from fastapi.testclient import TestClient
+    joblib.dump(lgbm_bundle[0], tmp_path / "lightgbm.joblib")
+    monkeypatch.setenv("MODEL_DIR", str(tmp_path))
+    monkeypatch.setenv("DB_PATH", _db_path(con))
+    import app as app_module
+    client = TestClient(importlib.reload(app_module).app)
+
+    assert client.get("/health").json()["status"] == "ok"
+    body = {"customer_id": 1, "merchant_id": 1, "amount": 42.5, "txn_time": "2026-01-15T03:10:00",
+            "channel": "ONLINE", "txn_city": "Pune"}
+    r = client.post("/score", json=body)
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert 0 <= out["fraud_probability"] <= 1 and isinstance(out["flagged"], bool)
+    assert set(out["features"]) == set(NUMERIC + CATEGORICAL)
+    assert client.post("/score", json={**body, "customer_id": 999999}).status_code == 404
+    assert client.post("/score", json={**body, "channel": "CHEQUE"}).status_code == 422
 
 
 def test_paysim_features_use_only_past_rows():

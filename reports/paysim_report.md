@@ -6,10 +6,12 @@ Fraud rate is 0.18% in train vs 0.65% in test (PaySim's legit volume falls off l
 
 | features | model | ROC-AUC | PR-AUC | precision | recall | FP | FN |
 |---|---|---|---|---|---|---|---|
-| all features | logistic_regression | 0.9922 | 0.6459 | 0.1791 | 0.9007 | 18499 | 445 |
-| all features | random_forest | 1.0 | 0.9991 | 0.9976 | 0.8475 | 9 | 683 |
-| no origin-balance features | logistic_regression | 0.8675 | 0.1049 | 0.0139 | 0.8973 | 286133 | 460 |
-| no origin-balance features | random_forest | 0.9439 | 0.4795 | 0.0333 | 0.894 | 116396 | 475 |
+| all features | logistic_regression | 0.9922 | 0.6654 | 0.1801 | 0.9009 | 18379 | 444 |
+| all features | random_forest | 1.0 | 0.9985 | 0.9987 | 0.9969 | 6 | 14 |
+| all features | lightgbm | 1.0 | 0.9996 | 0.9998 | 0.9987 | 1 | 6 |
+| no origin-balance features | logistic_regression | 0.8681 | 0.1112 | 0.0135 | 0.8989 | 293467 | 453 |
+| no origin-balance features | random_forest | 0.9416 | 0.434 | 0.0404 | 0.8821 | 93796 | 528 |
+| no origin-balance features | lightgbm | 0.9387 | 0.5298 | 0.0416 | 0.8808 | 91002 | 534 |
 
 **Why the full set is near-perfect:** 97.8% of PaySim fraud has `amount == oldbalanceOrg` exactly, vs 0.0% of legit txns. The simulator's fraud agent always empties the account, so `amt_to_orig_balance` hits exactly 1.0. That's a generator artifact, not a pattern real fraud follows, so the row without origin-balance features is the honest number.
 
