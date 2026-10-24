@@ -6,6 +6,8 @@
 > - **12.9% precision at 90% recall**, 60% better than Random Forest
 >
 > Same model ranking on the public **PaySim** dataset. Near-perfect scores (0.9996 here, 1.000 on PaySim) were traced to data shortcuts and removed.
+>
+> **Live demo:** [bank-fraud-detection-19rh.onrender.com/docs](https://bank-fraud-detection-19rh.onrender.com/docs). Open `POST /score` → *Try it out* → pick an example → *Execute*. It runs on a free instance, so the first request after 15 idle minutes takes ~1 minute to wake up.
 
 End-to-end fraud detection on ~220K bank transactions:
 - relational data in **SQLite**
@@ -104,7 +106,7 @@ docker build -t bank-fraud-detection .
 docker run -p 8000:8000 bank-fraud-detection         # → http://localhost:8000/docs
 ```
 
-**Deploy (free):** the repo includes `render.yaml`. On [Render](https://render.com), choose **New → Blueprint**, pick this repo, and it builds the Dockerfile and serves the API. The free tier sleeps after 15 minutes idle, so the first request after that takes ~1 minute.
+**Deployed** on Render's free tier from `render.yaml`: [live API docs](https://bank-fraud-detection-19rh.onrender.com/docs). To deploy your own copy, choose **New → Blueprint** on [Render](https://render.com) and point it at this repo. The free tier sleeps after 15 minutes idle, so the first request after that takes ~1 minute.
 
 ## Public data: PaySim
 
