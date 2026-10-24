@@ -1,0 +1,9 @@
+features,model,roc_auc,pr_auc,precision,recall,false_alerts,pr_auc_drop
+full model,logistic_regression,0.9643,0.2987,0.0334,0.9143,5554,0.0
+full model,random_forest,0.981,0.6657,0.0854,0.9,2025,0.0
+no category,logistic_regression,0.9565,0.3586,0.0329,0.8857,5468,0.0599
+no category,random_forest,0.9619,0.6577,0.0285,0.8952,6412,-0.008
+no is_new_merchant,logistic_regression,0.9435,0.1966,0.0307,0.8714,5773,-0.1021
+no is_new_merchant,random_forest,0.9767,0.6332,0.0556,0.9143,3259,-0.0325
+no category + no is_new_merchant,logistic_regression,0.9328,0.2211,0.0219,0.8524,8010,-0.0776
+no category + no is_new_merchant,random_forest,0.9398,0.608,0.0136,0.9,13745,-0.0577

@@ -13,19 +13,19 @@ WITH base AS (
 win AS (
     SELECT b.*,
         -- customer's historical average amount (excluding current txn)
-        AVG(amount) OVER (PARTITION BY customer_id ORDER BY jd
+        AVG(amount) OVER (PARTITION BY customer_id ORDER BY jd, txn_id
                           ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS hist_avg_amt,
-        COUNT(*)    OVER (PARTITION BY customer_id ORDER BY jd
+        COUNT(*)    OVER (PARTITION BY customer_id ORDER BY jd, txn_id
                           ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS hist_txn_count,
         -- time since previous txn (minutes)
-        (jd - LAG(jd) OVER (PARTITION BY customer_id ORDER BY jd)) * 1440       AS mins_since_prev,
+        (jd - LAG(jd) OVER (PARTITION BY customer_id ORDER BY jd, txn_id)) * 1440       AS mins_since_prev,
         -- velocity: txns in the last 1 hour (range on julian day; 1h = 1/24)
         COUNT(*) OVER (PARTITION BY customer_id ORDER BY jd
                        RANGE BETWEEN 0.0416667 PRECEDING AND CURRENT ROW)       AS txns_last_1h,
         SUM(amount) OVER (PARTITION BY customer_id ORDER BY jd
                        RANGE BETWEEN 1.0 PRECEDING AND CURRENT ROW)            AS amt_last_24h,
         -- first time this customer uses this merchant?
-        ROW_NUMBER() OVER (PARTITION BY customer_id, merchant_id ORDER BY jd)  AS merchant_visit_no
+        ROW_NUMBER() OVER (PARTITION BY customer_id, merchant_id ORDER BY jd, txn_id)  AS merchant_visit_no
     FROM base b
 )
 SELECT txn_id,
@@ -47,4 +47,4 @@ SELECT txn_id,
        category,
        is_fraud
 FROM win
-ORDER BY txn_time;
+ORDER BY txn_time, txn_id;

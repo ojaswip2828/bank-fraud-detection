@@ -11,8 +11,11 @@ TARGET = "is_fraud"
 
 
 def load_features(con=None):
+    own = con is None
     con = con or connect()
     df = query(con, (SQL_DIR / "features.sql").read_text())
+    if own:
+        con.close()
     df["log_amount"] = np.log1p(df["amount"])
     df["amt_last_24h"] = np.log1p(df["amt_last_24h"])  # heavy-tailed -> log
     return df
