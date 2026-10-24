@@ -10,7 +10,10 @@ RUN pip install --no-cache-dir -r requirements-serve.txt
 
 COPY sql sql
 COPY src src
-# Generate data, build SQLite and train the calibrated LightGBM inside the image (seed=42)
+# Generate data, build SQLite and train the calibrated LightGBM inside the image (seed=42).
+# One thread: build machines expose many cores but grant a fraction of one; letting
+# LightGBM/OpenMP spawn a thread per visible core thrashes. Results are identical.
+ENV N_JOBS=1 OMP_NUM_THREADS=1 PYTHONUNBUFFERED=1
 RUN python src/build_serving.py
 
 ENV PORT=8000

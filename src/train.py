@@ -12,6 +12,7 @@ Key choices (be ready to defend these):
   isn't leaning on a single column.
 """
 import json
+import os
 
 import joblib
 import numpy as np
@@ -35,6 +36,9 @@ from features import CATEGORICAL, NUMERIC, TARGET, load_features, time_split
 REPORTS = ROOT / "reports"
 MODELS = ROOT / "models"
 TARGET_RECALL = 0.90
+# -1 = all cores. Containers see the host's cores but may get a sliver of one,
+# so the Docker build sets N_JOBS=1 (identical results, no thread thrashing).
+N_JOBS = int(os.environ.get("N_JOBS", -1))
 ABLATIONS = {
     "full model": [],
     "no category": ["category"],
@@ -61,11 +65,11 @@ def _calibrated(clf, calibrate):
 def build_models(numeric=NUMERIC, categorical=CATEGORICAL, rf_kwargs=None,
                  calibrate=True, only=None):
     rf = dict(n_estimators=300, max_depth=12, min_samples_leaf=3,
-              class_weight="balanced_subsample", n_jobs=-1, random_state=42)
+              class_weight="balanced_subsample", n_jobs=N_JOBS, random_state=42)
     rf.update(rf_kwargs or {})
     lgbm = dict(n_estimators=400, learning_rate=0.05, num_leaves=31, min_child_samples=50,
                 subsample=0.8, subsample_freq=1, colsample_bytree=0.8, reg_lambda=1.0,
-                class_weight="balanced", random_state=42, n_jobs=-1, verbose=-1)
+                class_weight="balanced", random_state=42, n_jobs=N_JOBS, verbose=-1)
     models = {
         "logistic_regression": Pipeline([
             ("pre", _pre(numeric, categorical, scale=True)),
