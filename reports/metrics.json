@@ -1,0 +1,58 @@
+{
+  "logistic_regression": {
+    "threshold": 0.9511,
+    "roc_auc": 0.9965,
+    "pr_auc": 0.7731,
+    "precision": 0.3099,
+    "recall": 0.9159,
+    "f1": 0.4631,
+    "confusion": {
+      "tn": 54875,
+      "fp": 461,
+      "fn": 19,
+      "tp": 207
+    },
+    "at_default_0.5": {
+      "threshold": 0.5,
+      "roc_auc": 0.9965,
+      "pr_auc": 0.7731,
+      "precision": 0.0924,
+      "recall": 0.9867,
+      "f1": 0.169,
+      "confusion": {
+        "tn": 53146,
+        "fp": 2190,
+        "fn": 3,
+        "tp": 223
+      }
+    }
+  },
+  "random_forest": {
+    "threshold": 0.3181,
+    "roc_auc": 0.9996,
+    "pr_auc": 0.9279,
+    "precision": 0.7003,
+    "recall": 0.9513,
+    "f1": 0.8068,
+    "confusion": {
+      "tn": 55244,
+      "fp": 92,
+      "fn": 11,
+      "tp": 215
+    },
+    "at_default_0.5": {
+      "threshold": 0.5,
+      "roc_auc": 0.9996,
+      "pr_auc": 0.9279,
+      "precision": 0.8048,
+      "recall": 0.8938,
+      "f1": 0.847,
+      "confusion": {
+        "tn": 55287,
+        "fp": 49,
+        "fn": 24,
+        "tp": 202
+      }
+    }
+  }
+}

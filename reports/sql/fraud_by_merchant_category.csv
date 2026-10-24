@@ -1,0 +1,9 @@
+category,txns,fraud_txns,fraud_value
+electronics,33213,170,12608586.11
+travel,29990,149,10611661.16
+online_retail,22251,619,4696862.26
+utilities,30764,0,0.0
+restaurant,29084,0,0.0
+grocery,23491,0,0.0
+fuel,26796,0,0.0
+atm_withdrawal,26658,0,0.0

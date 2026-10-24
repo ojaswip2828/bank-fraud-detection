@@ -1,0 +1,5 @@
+channel,txns,fraud_txns,fraud_rate_pct
+ONLINE,21845,715,3.273
+UPI,89981,199,0.221
+POS,84439,24,0.028
+ATM,25982,0,0.0
