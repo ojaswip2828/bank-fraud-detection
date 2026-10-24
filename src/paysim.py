@@ -13,6 +13,9 @@ Honesty rules (same spirit as sql/features.sql):
   "balance error" columns. Those are post-transaction simulator artifacts that
   make the problem trivially separable and wouldn't be clean at authorisation time.
 - History features for a destination account use only its *earlier* rows.
+- Report every model twice: with and without origin-balance features. PaySim's fraud
+  agent always transfers the exact origin balance, so those features memorise the
+  simulator; the run without them is the honest number.
 - Time split on `step` (hours): train on the past, test on the future.
 - To keep RF training to a few minutes, legit rows used for *fitting* are
   downsampled. Threshold tuning and test metrics always use the full class mix.
@@ -31,6 +34,11 @@ NUMERIC = ["log_amount", "amt_to_orig_balance", "drains_orig", "orig_balance_zer
            "log_old_balance_dest", "dest_hist_count", "amt_to_dest_hist_avg",
            "dest_hours_since_prev", "dest_txns_same_hour", "hour"]
 CATEGORICAL = ["type"]
+FEATURE_SETS = {
+    "all features": [],
+    # PaySim fraud empties the origin account to the cent -> these features memorise the simulator
+    "no origin-balance features": ["amt_to_orig_balance", "drains_orig", "orig_balance_zero"],
+}
 REPORT = ROOT / "reports" / "paysim_report.md"
 
 
@@ -72,28 +80,42 @@ def main(csv, legit_frac=0.05, n_estimators=150, seed=42):
         keep = (d[TARGET] == 1) | (rng.random(len(d)) < legit_frac)
         return d[keep]
 
-    cols = NUMERIC + CATEGORICAL
     results = {}
+    exact_drain = df.groupby(TARGET).apply(lambda d: (d.amount == d.oldbalanceOrg).mean())
     print(f"PaySim TRANSFER+CASH_OUT: {len(df):,} rows, fraud {df[TARGET].mean():.3%} | "
           f"train {len(train):,} / test {len(test):,} (fraud {int(test[TARGET].sum())})")
-    for name, pipe in build_models(NUMERIC, CATEGORICAL,
-                                   rf_kwargs={"n_estimators": n_estimators}).items():
-        m, _, _ = fit_and_evaluate(pipe, train, test, cols, target=TARGET, fit_rows=fit_rows)
-        results[name] = m
-        print(f"{name}: {json.dumps({k: v for k, v in m.items() if k != 'at_default_0.5'})}")
+    for label, drop in FEATURE_SETS.items():
+        num = [c for c in NUMERIC if c not in drop]
+        results[label] = {}
+        for name, pipe in build_models(num, CATEGORICAL,
+                                       rf_kwargs={"n_estimators": n_estimators}).items():
+            m, _, _ = fit_and_evaluate(pipe, train, test, num + CATEGORICAL,
+                                       target=TARGET, fit_rows=fit_rows)
+            results[label][name] = m
+            print(f"[{label}] {name}: "
+                  f"{json.dumps({k: v for k, v in m.items() if k != 'at_default_0.5'})}")
 
     md = ["# PaySim results", "",
           f"Rows: {len(df):,} TRANSFER/CASH_OUT txns, fraud rate {df[TARGET].mean():.3%}. "
           f"Split on `step` (train first 75%, test last 25%: {len(test):,} txns, "
           f"{int(test[TARGET].sum())} fraud). Threshold tuned on validation for recall >= 0.9.", "",
-          "| model | ROC-AUC | PR-AUC | precision | recall | FP | FN |",
-          "|---|---|---|---|---|---|---|"]
-    for n, m in results.items():
-        c = m["confusion"]
-        md.append(f"| {n} | {m['roc_auc']} | {m['pr_auc']} | {m['precision']} | {m['recall']} "
-                  f"| {c['fp']} | {c['fn']} |")
-    md += ["", "Excluded on purpose: `isFlaggedFraud`, `newbalanceOrig`, `newbalanceDest`, "
-               "balance-error features (post-transaction simulator artifacts)."]
+          f"Fraud rate is {train[TARGET].mean():.2%} in train vs {test[TARGET].mean():.2%} in test "
+          "(PaySim's legit volume falls off late in the month), so thresholds tuned on the past "
+          "can undershoot the recall target.", "",
+          "| features | model | ROC-AUC | PR-AUC | precision | recall | FP | FN |",
+          "|---|---|---|---|---|---|---|---|"]
+    for label, by_model in results.items():
+        for n, m in by_model.items():
+            c = m["confusion"]
+            md.append(f"| {label} | {n} | {m['roc_auc']} | {m['pr_auc']} | {m['precision']} "
+                      f"| {m['recall']} | {c['fp']} | {c['fn']} |")
+    md += ["", f"**Why the full set is near-perfect:** {exact_drain.get(1, 0):.1%} of PaySim fraud has "
+               f"`amount == oldbalanceOrg` exactly, vs {exact_drain.get(0, 0):.1%} of legit txns. "
+               "The simulator's fraud agent always empties the account, so `amt_to_orig_balance` "
+               "hits exactly 1.0. That's a generator artifact, not a pattern real fraud follows, "
+               "so the row without origin-balance features is the honest number.", "",
+           "Excluded from every run: `isFlaggedFraud`, `newbalanceOrig`, `newbalanceDest`, "
+           "balance-error features (post-transaction simulator artifacts)."]
     REPORT.parent.mkdir(exist_ok=True)
     REPORT.write_text("\n".join(md) + "\n", encoding="utf-8")
     (ROOT / "reports" / "paysim_metrics.json").write_text(json.dumps(results, indent=2))

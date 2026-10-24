@@ -1,0 +1,118 @@
+{
+  "all features": {
+    "logistic_regression": {
+      "threshold": 0.7739,
+      "roc_auc": 0.9922,
+      "pr_auc": 0.6459,
+      "precision": 0.1791,
+      "recall": 0.9007,
+      "f1": 0.2987,
+      "confusion": {
+        "tn": 669624,
+        "fp": 18499,
+        "fn": 445,
+        "tp": 4035
+      },
+      "at_default_0.5": {
+        "threshold": 0.5,
+        "roc_auc": 0.9922,
+        "pr_auc": 0.6459,
+        "precision": 0.0753,
+        "recall": 0.9884,
+        "f1": 0.1399,
+        "confusion": {
+          "tn": 633708,
+          "fp": 54415,
+          "fn": 52,
+          "tp": 4428
+        }
+      }
+    },
+    "random_forest": {
+      "threshold": 0.9733,
+      "roc_auc": 1.0,
+      "pr_auc": 0.9991,
+      "precision": 0.9976,
+      "recall": 0.8475,
+      "f1": 0.9165,
+      "confusion": {
+        "tn": 688114,
+        "fp": 9,
+        "fn": 683,
+        "tp": 3797
+      },
+      "at_default_0.5": {
+        "threshold": 0.5,
+        "roc_auc": 1.0,
+        "pr_auc": 0.9991,
+        "precision": 0.9863,
+        "recall": 0.9987,
+        "f1": 0.9925,
+        "confusion": {
+          "tn": 688061,
+          "fp": 62,
+          "fn": 6,
+          "tp": 4474
+        }
+      }
+    }
+  },
+  "no origin-balance features": {
+    "logistic_regression": {
+      "threshold": 0.2668,
+      "roc_auc": 0.8675,
+      "pr_auc": 0.1049,
+      "precision": 0.0139,
+      "recall": 0.8973,
+      "f1": 0.0273,
+      "confusion": {
+        "tn": 401990,
+        "fp": 286133,
+        "fn": 460,
+        "tp": 4020
+      },
+      "at_default_0.5": {
+        "threshold": 0.5,
+        "roc_auc": 0.8675,
+        "pr_auc": 0.1049,
+        "precision": 0.0272,
+        "recall": 0.7931,
+        "f1": 0.0526,
+        "confusion": {
+          "tn": 561067,
+          "fp": 127056,
+          "fn": 927,
+          "tp": 3553
+        }
+      }
+    },
+    "random_forest": {
+      "threshold": 0.2131,
+      "roc_auc": 0.9439,
+      "pr_auc": 0.4795,
+      "precision": 0.0333,
+      "recall": 0.894,
+      "f1": 0.0641,
+      "confusion": {
+        "tn": 571727,
+        "fp": 116396,
+        "fn": 475,
+        "tp": 4005
+      },
+      "at_default_0.5": {
+        "threshold": 0.5,
+        "roc_auc": 0.9439,
+        "pr_auc": 0.4795,
+        "precision": 0.1532,
+        "recall": 0.8183,
+        "f1": 0.2581,
+        "confusion": {
+          "tn": 667866,
+          "fp": 20257,
+          "fn": 814,
+          "tp": 3666
+        }
+      }
+    }
+  }
+}

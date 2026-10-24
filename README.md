@@ -49,12 +49,23 @@ To check the approach on fraud patterns this project didn't write, `src/paysim.p
 
 Excluded on purpose: `isFlaggedFraud` (PaySim's own rule output) and the post-transaction `newbalance*` / balance-error columns. Those make PaySim trivially separable and wouldn't be clean at authorisation time.
 
+Test set: the last 25% of PaySim's timeline, 692,603 TRANSFER/CASH_OUT transactions with 4,480 fraud (`reports/paysim_report.md`):
+
+| Features | Model | ROC-AUC | PR-AUC | Precision | Recall | False alerts |
+|---|---|---|---|---|---|---|
+| all | Logistic Regression | 0.992 | 0.646 | 0.18 | 0.90 | 18,499 |
+| all | Random Forest | 1.000 | 0.999 | 1.00 | 0.85 | 9 |
+| **no origin-balance features** | Logistic Regression | 0.868 | 0.105 | 0.01 | 0.90 | 286,133 |
+| **no origin-balance features** | **Random Forest** | **0.944** | **0.480** | **0.03** | **0.89** | **116,396** |
+
+- **The "all features" row is a simulator artifact, not a result.** 97.8% of PaySim fraud transfers *exactly* the origin account's balance (0.0% of legit transactions do). PaySim's fraud agent always empties the account, so `amt_to_orig_balance == 1.0` alone nearly identifies fraud. Real fraudsters don't follow that rule, so I drop the three origin-balance features and treat the second pair of rows as the real number.
+- **The same story holds on data I didn't write.** Random Forest beats Logistic Regression by 4.6× on PR-AUC (0.48 vs 0.10), using only destination-account history, velocity, amount and transaction type. That lines up with the synthetic results (0.67 vs 0.30).
+- **There's a time shift.** Fraud is 0.18% of the training period but 0.65% of the test period, because PaySim's legit volume drops late in the month. Thresholds tuned on the past land just under the 90% recall target (89%), the kind of drift a production model would need monitoring for.
+
 ```bash
 # download the CSV from Kaggle into data/paysim/ first (needs a free Kaggle account)
-python src/paysim.py --csv data/paysim/PS_20174392719_1491204439457_log.csv
+python src/paysim.py --csv data/paysim/PS_20174392719_1491204439457_log.csv   # ~1.5 min
 ```
-
-Results are written to `reports/paysim_report.md`.
 
 ## Architecture
 
@@ -125,7 +136,7 @@ All history features use `ROWS … 1 PRECEDING` (ordered by time, then `txn_id` 
 7. **Why SHAP:** a flag with no reason can't be actioned by an analyst or defended to a regulator (RBI model-risk expectations). LR stays as the transparent baseline.
 
 ## Limitations & next steps
-- The headline results are on synthetic data. PaySim is a public cross-check, but it is also simulated. IEEE-CIS (real but anonymised) is the next step.
+- The headline results are on synthetic data. PaySim is a public cross-check, but it is also simulated (and has its own shortcut, above). IEEE-CIS (real but anonymised) is the next step.
 - Add XGBoost/LightGBM.
 - The threshold is tuned on a model fit on 80% of train, then applied after refitting on all of it. Calibrating probabilities would make that transfer more reliable.
 - Serve via a FastAPI `/score` endpoint + Docker; stream transactions via Kafka for real-time scoring.
